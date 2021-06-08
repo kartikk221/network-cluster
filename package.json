@@ -1,0 +1,30 @@
+{
+  "name": "network-cluster",
+  "version": "1.0.0",
+  "description": "A Simple-To-Use Package For Communication Between Multiple Machines Using Network APIs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kartikk221/network-cluster.git"
+  },
+  "keywords": [
+    "cluster",
+    "network",
+    "http",
+    "ws",
+    "multiple-machines",
+    "communication",
+    "fast",
+    "uwebsockets",
+    "hyper-express"
+  ],
+  "author": "kartikk221",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kartikk221/network-cluster/issues"
+  },
+  "homepage": "https://github.com/kartikk221/network-cluster#readme"
+}
