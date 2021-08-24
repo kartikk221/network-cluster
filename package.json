@@ -26,5 +26,10 @@
   "bugs": {
     "url": "https://github.com/kartikk221/network-cluster/issues"
   },
-  "homepage": "https://github.com/kartikk221/network-cluster#readme"
+  "homepage": "https://github.com/kartikk221/network-cluster#readme",
+  "dependencies": {
+    "hyper-express": "^2.1.0",
+    "uuid": "^8.3.2",
+    "ws": "^7.4.6"
+  }
 }
