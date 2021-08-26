@@ -167,7 +167,7 @@ class Consumer {
 
             // Mark instance as closed as no reconnect policy specified
             reference.#handlers.log('CLOSED');
-            reference.#emitter.emit('close');
+            reference.#emitter.emit('close', code, reason);
         });
 
         // Bind 'error' event handler
@@ -253,6 +253,28 @@ class Consumer {
     }
 
     /**
+     * Sets error handler for Consumer instance.
+     *
+     * @param {Function} handler
+     */
+    set_error_handler(handler) {
+        if (typeof handler !== 'function')
+            throw new Error('set_error_handler(handler) -> handler must be a Function');
+        this.#handlers.error = handler;
+    }
+
+    /**
+     * Sets debug logger for Consumer instance.
+     *
+     * @param {Function} handler
+     */
+    set_debug_logger(handler) {
+        if (typeof handler !== 'function')
+            throw new Error('set_debug_logger(handler) -> handler must be a Function');
+        this.#handlers.log = handler;
+    }
+
+    /**
      * Alias of Consumer.emitter.on method.
      *
      * @param {String} event
@@ -334,7 +356,7 @@ class Consumer {
     }
 
     get heartbeat_duration() {
-        return this.#heartbeat_duration;
+        return this.#heartbeat_duration * this.#heartbeat_margin;
     }
 
     get last_heartbeat() {
