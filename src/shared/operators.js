@@ -4,14 +4,13 @@
  * @param {Object} obj1 Base Object
  * @param {Object} obj2 Focus Object
  */
-function wrap_object(obj1, obj2) {
-    Object.keys(obj2).forEach((key) => {
-        let value = obj2[key];
-        if (typeof value == 'object') {
-            if (obj1[key] === null || typeof obj1[key] !== 'object') obj1[key] = {};
-            wrap_object(obj1[key], obj2[key]);
+function wrap_object(original, target) {
+    Object.keys(target).forEach((key) => {
+        if (typeof target[key] == 'object') {
+            if (original[key] === null || typeof original[key] !== 'object') original[key] = {};
+            wrap_object(original[key], target[key]);
         } else {
-            obj1[key] = value;
+            original[key] = target[key];
         }
     });
 }
@@ -54,7 +53,21 @@ function throttled_for_each(items, per_eloop = 300, handler, cursor = 0, final) 
     return final();
 }
 
+/**
+ * Converts provided object into a url encoded string payload.
+ *
+ * @param {Object} object
+ * @param {Boolean} encode
+ * @returns {String} String
+ */
+function to_url_parameters(object = {}, encode = true) {
+    return Object.keys(object)
+        .map((key) => key + '=' + (encode ? encodeURIComponent(object[key]) : object[key]))
+        .join('&');
+}
+
 module.exports = {
     wrap_object,
     throttled_for_each,
+    to_url_parameters,
 };

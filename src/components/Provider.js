@@ -18,14 +18,14 @@ class Provider {
 
     #options = {
         port: 8080,
-        path: '/cluster/connect',
+        path: '/connect',
         ws: {
             compressor: HyperExpress.compressors.DISABLED,
             max_backpressure: 1024 * 1024,
             max_payload_length: 32 * 1024,
         },
         auth: {
-            headers: null,
+            parameters: null,
             handler: null,
         },
         ssl: {
@@ -38,9 +38,6 @@ class Provider {
         heartbeat: {
             interval: 1000 * 10, // By default check every 10 seconds
             max_strikes: 1,
-        },
-        internal: {
-            metadata: 'x-nc-metadata',
         },
     };
 
@@ -55,8 +52,8 @@ class Provider {
      * @param {Number} options.ws.max_backpressure Max length of backpressure content
      * @param {Number} options.ws.max_payload_length Max incoming payload length
      * @param {Object} options.auth Incoming connection authentication conditions
-     * @param {Object} options.auth.headers Request headers authenticated for incoming consumer connections
-     * @param {Function} options.auth.handler Upgrade Handler for incoming consumer connections. Example: (request, response, upgrade) => upgrade(true)
+     * @param {Object} options.auth.parameters Request parameters parameters to authenticate for incoming consumer connections
+     * @param {Function} options.auth.handler Upgrade Handler for incoming consumer connections to authenticate. Example: (request, response, upgrade) => upgrade(true)
      * @param {Object} options.ssl SSL Options [Both ssl.key and ssl.cert are REQUIRED]
      * @param {String} options.ssl.key Path to SSL Key file [REQUIRED]
      * @param {String} options.ssl.cert Path to SSL Cert file [REQUIRED]
@@ -66,8 +63,6 @@ class Provider {
      * @param {Object} options.heartbeat Heartbeat (Ping Pong) cycle policy options
      * @param {Number} options.heartbeat.interval Interval in milliseconds to perform Ping/Pong cycle
      * @param {Number} options.heartbeat.max_strikes Max number of inactive ping responses before disconnection and cleanup
-     * @param {Object} options.internal Internal options
-     * @param {String} options.internal.metadata Specifies header key from which connection metadata is parsed
      */
     constructor(options = this.#options) {
         // Enforce option type
@@ -102,6 +97,17 @@ class Provider {
         } else {
             this.#server = new HyperExpress.Server();
         }
+
+        this.#server.get('/alive', (request, response) =>
+            response.send('Hello World @ ' + Date.now())
+        );
+
+        // Bind server error handler to emitter
+        let reference = this;
+        this.#server.set_error_handler((request, response, error) => {
+            reference.#handlers.error(error);
+            return response.status(500).send();
+        });
 
         // Bind listener route
         this._bind_listener_route();
@@ -141,25 +147,8 @@ class Provider {
      * @param {Number} code HTTP response code
      */
     _reject_upgrade(request, response, code = 403) {
-        this.#handlers.log('REJECT_CONNECTION|' + request.ip);
-        return response.status(code).send();
-    }
-
-    /**
-     * Checks whether or not request headers contain all required headers.
-     *
-     * @param {Object} request_headers
-     * @param {Object} required_headers
-     * @returns {Boolean} Result
-     */
-    _verify_headers(request_headers, required_headers) {
-        let result = true;
-
-        Object.keys(required_headers).forEach((key) => {
-            if (request_headers[key] !== required_headers[key]) result = false;
-        });
-
-        return result;
+        this.#handlers.log('REJECT_CONNECTION|' + request.ip + '|' + request.url);
+        return response.status(code).send('Unauthorized');
     }
 
     /**
@@ -169,16 +158,25 @@ class Provider {
      * @param {Response} response
      */
     async _on_connection_upgrade(request, response) {
-        const { headers, handler } = this.#options.auth;
+        const { parameters, handler } = this.#options.auth;
 
-        // Verify incoming upgrade request's headers
-        if (headers && !this._verify_headers(request.headers, headers))
-            return this._reject_upgrade(request, response);
+        // Verify parameters from incoming request if specified as required
+        if (parameters) {
+            // Match incoming request parameters against required parameters
+            let verdict = true;
+            let request_parameters = request.query_parameters;
+            Object.keys(parameters).forEach((key) => {
+                if (request_parameters[key] !== parameters[key]) verdict = false;
+            });
+
+            // Reject upgrade request if verdict is to decline upgrade
+            if (!verdict) return this._reject_upgrade(request, response);
+        }
 
         // Verify incoming upgrade request using handler if provided by user
         if (typeof handler == 'function') {
             try {
-                let result = await handler(request, response);
+                let result = await handler(request, request.query_parameters);
                 if (result !== true) return this._reject_upgrade(request, response);
             } catch (error) {
                 this.#handlers.error(error);
@@ -197,13 +195,11 @@ class Provider {
      */
     _upgrade_connection(request, response) {
         const id = UUID.v4();
-        const metadata = request.headers[this.#options.internal.metadata] || null;
-
-        this.#handlers.log('CONNECTION_UPGRADE|' + id + '|' + request.ip + '|' + metadata);
+        this.#handlers.log('CONNECTION_UPGRADE|' + id + '|' + request.ip);
         return response.upgrade({
             id: id,
             ip: request.ip,
-            metadata: metadata,
+            parameters: request.query_parameters,
             alive: true,
             strikes: 0,
             last_ping: Date.now(),
@@ -342,12 +338,19 @@ class Provider {
 
         // Destroy Event Emitter
         this.#emitter.removeAllListeners();
-        this.#emitter = null;
     }
 
     /* Server Getters */
     get connections() {
         return this.#connections;
+    }
+
+    get port() {
+        return this.#options.port;
+    }
+
+    get path() {
+        return this.#options.path;
     }
 
     get events() {

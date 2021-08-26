@@ -1,6 +1,12 @@
 const NetworkCluster = require('../../index.js');
 const { log, assert_log, wait_until, async_wait } = require('../operators.js');
-const { HOST, MAIN_PROVIDER_PORT, MAIN_PROVIDER } = require('../setup/providers.js');
+const { port, host } = require('../env.json');
+
+const PROVIDER_HOST = host;
+const PROVIDER_PORT = port;
+const PROVIDER = new NetworkCluster.Provider({
+    port: PROVIDER_PORT,
+});
 
 async function provider_test() {
     const GROUP = 'PROVIDER';
@@ -9,13 +15,13 @@ async function provider_test() {
 
     // Check initial connections state
     assert_log(GROUP, 'Initial Connections @ 0 Connections', () => {
-        return Object.keys(MAIN_PROVIDER.connections).length === 0;
+        return Object.keys(PROVIDER.connections).length === 0;
     });
 
     // Create test consumer
     const CONSUMER = new NetworkCluster.Consumer({
-        host: HOST,
-        port: MAIN_PROVIDER_PORT,
+        host: PROVIDER_HOST,
+        port: PROVIDER_PORT,
     });
 
     // Connect Test Consumer To Main Provider
@@ -25,7 +31,7 @@ async function provider_test() {
 
     // Check connections state after net connection
     assert_log(GROUP, 'Provider Connections @ 1 Connections', () => {
-        return Object.keys(MAIN_PROVIDER.connections).length === 1;
+        return Object.keys(PROVIDER.connections).length === 1;
     });
 
     // Perform Two Way Messaging Test
@@ -34,7 +40,7 @@ async function provider_test() {
     let consumer_log = [];
 
     // Main provider responds with [message + 1] value
-    MAIN_PROVIDER.on('message', (ws, message) => {
+    PROVIDER.on('message', (ws, message) => {
         // Break back and forth chain at 5 communications
         if (provider_log.length >= max_messages) return;
 
@@ -76,18 +82,21 @@ async function provider_test() {
     log(GROUP, `Performing Heartbeat Cycle Accuracy Check Over ${sample_time}ms`);
     await async_wait(sample_time);
     assert_log(GROUP, 'Provider Heartbeat Cycle Accuracy', () => {
-        return Object.keys(MAIN_PROVIDER.connections).length === 1;
+        return Object.keys(PROVIDER.connections).length === 1;
     });
 
     // Destroy test consumer and wait 10ms
     log(GROUP, 'Destroying Test Consumer...');
     CONSUMER.destroy();
-    await async_wait(10);
+    await async_wait(5);
 
     // Verify provider successfully cleaned up consumer connection
     assert_log(GROUP, 'Test Consumer Connection Cleanup', () => {
-        return Object.keys(MAIN_PROVIDER.connections).length === 0;
+        return Object.keys(PROVIDER.connections).length === 0;
     });
+
+    // Destroy provider to free up port
+    PROVIDER.destroy();
 
     log(GROUP, `Finished Testing Provider Class In ${Date.now() - start_time}ms\n`);
 }

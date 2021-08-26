@@ -28,7 +28,7 @@
   },
   "homepage": "https://github.com/kartikk221/network-cluster#readme",
   "dependencies": {
-    "hyper-express": "^2.1.0",
+    "hyper-express": "^2.1.1",
     "uuid": "^8.3.2",
     "ws": "^7.4.6"
   }

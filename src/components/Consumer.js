@@ -1,6 +1,6 @@
 const EventEmitter = require('events');
 const WebSocket = require('ws');
-const { wrap_object } = require('../shared/operators.js');
+const { wrap_object, to_url_parameters } = require('../shared/operators.js');
 
 class Consumer {
     #ws;
@@ -14,19 +14,22 @@ class Consumer {
     #heartbeat_interval;
     #heartbeat_margin = 2;
     #heartbeat_duration = 30 * 1000;
+    #handlers = {
+        log: (message) => {},
+        error: (error) => {
+            // Handle silently
+        },
+    };
+
     #options = {
         ssl: false,
         host: null,
         port: 8080,
-        path: '/cluster/connect',
-        headers: null,
-        metadata: null,
+        path: '/connect',
+        parameters: {},
         reconnect: {
             interval: 1000,
             max_attempts: 10,
-        },
-        internal: {
-            metadata: 'x-nc-metadata',
         },
     };
 
@@ -38,17 +41,16 @@ class Consumer {
      * @param {String} options.host IP/Host of the Provider websocket access url
      * @param {Number} options.port Port of the Provider websocket access url
      * @param {String} options.path URL parth of the Provider websocket access url
-     * @param {Object} options.headers Authentication headers
+     * @param {Object} options.parameters Authentication parameters
      * @param {String} options.metadata Connection metadata to make available on Provider connection instance
      * @param {Object} options.reconnect Reconnect policy options
      * @param {Number} options.reconnect.internal Number of milliseconds to wait for before retrying connection
      * @param {Number} options.reconnect.max_attempts Maximum number of attempts to retry before closing instance
-     * @param {Object} options.internal Internal options
-     * @param {String} options.internal.metadata Specifies header key on which metadata is sent with upgrade request
      */
     constructor(options = this.#options) {
         // Wrap user provided options over default
         wrap_object(this.#options, options);
+        this.#handlers.log('INITIALIZED');
     }
 
     /**
@@ -62,6 +64,7 @@ class Consumer {
 
         // Create new interval
         setInterval(() => this._check_heartbeat(), delay);
+        this.#handlers.log('HEARTBEAT_DURATION|' + delay);
     }
 
     /**
@@ -71,26 +74,31 @@ class Consumer {
         let difference = Date.now() - this.#last_ping;
         let max_duration = this.#heartbeat_duration * this.#heartbeat_margin;
         if (difference > max_duration) this.#ws.close();
+        this.#handlers.log('HEARTBEAT_CHECK');
     }
 
     /**
      * Creates initial websocket connection for Consumer instance.
      */
     _create_ws_connection() {
-        const { ssl, host, port, path, headers, metadata, internal } = this.#options;
-        let request_headers = headers || {};
-
-        // Add metadata to headers if specified
-        if (typeof metadata == 'string' && metadata.length > 0)
-            request_headers[internal.metadata] = metadata;
+        const { ssl, host, port, path, parameters } = this.#options;
 
         // Mark instance as in flight
         this.#in_flight = true;
 
+        // Clean up old websocket connection
+        if (this.#ws) {
+            this.#ws.removeAllListeners();
+            this.#ws = null;
+        }
+
         // Create new WebSocket connection
-        this.#ws = new WebSocket(`${ssl ? 'https' : 'http'}://${host}:${port}${path}`, {
-            headers: request_headers,
-        });
+        this.#handlers.log('IN_FLIGHT');
+        const URL_PARAMETERS = to_url_parameters(parameters);
+        const URL = `${ssl ? 'wss' : 'ws'}://${host}:${port}${path}${
+            URL_PARAMETERS ? '?' + URL_PARAMETERS : ''
+        }`;
+        this.#ws = new WebSocket(URL);
 
         // Bind WebSocket handlers for connection events
         this._bind_ws_handlers();
@@ -113,6 +121,7 @@ class Consumer {
             reference.#reconnect_attempts = 0;
 
             // Emit 'open' event for user subscriptions
+            reference.#handlers.log('CONNECTED');
             reference.#emitter.emit('open');
 
             // Re-Initiate heartbeat check cycle
@@ -123,6 +132,7 @@ class Consumer {
         this.#ws.on('message', (message) => {
             // Convert message to string type
             message = message.toString();
+            reference.#handlers.log('MESSAGE|' + message);
 
             // Respond with 'PONG' to pings from provider
             if (message === 'PING') {
@@ -142,6 +152,7 @@ class Consumer {
 
         // Bind 'close' event handler
         this.#ws.once('close', (code, reason) => {
+            reference.#handlers.log('DISCONNECTED');
             reference.#connected = false;
             reference.#emitter.emit('disconnect', code, reason);
 
@@ -150,10 +161,12 @@ class Consumer {
             const policy = reference.#options.reconnect;
             if (policy && typeof policy == 'object' && attempts < policy.max_attempts) {
                 reference.#reconnect_attempts++;
+                reference.#handlers.log('RECONNECTING');
                 return setTimeout(() => reference._create_ws_connection(), policy.interval);
             }
 
             // Mark instance as closed as no reconnect policy specified
+            reference.#handlers.log('CLOSED');
             reference.#emitter.emit('close');
         });
 
@@ -162,24 +175,9 @@ class Consumer {
             // Internally handle error messages to change consumer state
             if (error.message) reference._handle_error_message(error);
 
-            // Emit error over emitter
-            this.#emitter.emit('error', error);
+            // Trigger error handler
+            reference.#handlers.error(error);
         });
-    }
-
-    /**
-     * Flushes ready promises queue based on state.
-     */
-    _flush_ready_queue() {
-        // Flush all queued promises with appropriate responses
-        let reference = this;
-        this.#ready_queue.forEach(([resolve, reject]) => {
-            if (reference.#fatal_error) return reject(reference.#fatal_error);
-            resolve();
-        });
-
-        // Re-instate ready promise queue
-        this.#ready_queue = [];
     }
 
     /**
@@ -202,6 +200,22 @@ class Consumer {
             this.#fatal_error = error;
             this._flush_ready_queue();
         }
+    }
+
+    /**
+     * Flushes ready promises queue based on state.
+     */
+    _flush_ready_queue() {
+        // Flush all queued promises with appropriate responses
+        let reference = this;
+        reference.#handlers.log('FLUSHED_QUEUE');
+        this.#ready_queue.forEach(([resolve, reject]) => {
+            if (reference.#fatal_error) return reject(reference.#fatal_error);
+            resolve();
+        });
+
+        // Re-instate ready promise queue
+        this.#ready_queue = [];
     }
 
     /**
@@ -271,6 +285,7 @@ class Consumer {
         // Ensure message is a string type
         if (typeof message == 'string') {
             // Send message through websocket connection
+            this.#handlers.log('SEND|' + message);
             this.#ws.send(message);
             return true;
         }
@@ -298,7 +313,7 @@ class Consumer {
 
         // Destroy Event Emitter
         this.#emitter.removeAllListeners();
-        this.#emitter = null;
+        this.#handlers.log('DESTROYED');
     }
 
     /* Consumer Getters */
@@ -318,7 +333,11 @@ class Consumer {
         return this.#connected;
     }
 
-    get last_ping() {
+    get heartbeat_duration() {
+        return this.#heartbeat_duration;
+    }
+
+    get last_heartbeat() {
         return this.#last_ping;
     }
 }
