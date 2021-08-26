@@ -1,6 +1,6 @@
 {
   "name": "network-cluster",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A Simple-To-Use Package For Communication Between Multiple Machines Using Network APIs",
   "main": "index.js",
   "scripts": {
