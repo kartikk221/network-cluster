@@ -1,6 +1,17 @@
 # NetworkCluster: Create Multi-Machine Network Clusters With A Simple-To-Use API
 #### Powered by [`HyperExpress`](https://github.com/kartikk221/hyper-express)
 
+<div align="left">
+
+[![NPM version](https://img.shields.io/npm/v/network-cluster.svg?style=flat)](https://www.npmjs.com/package/network-cluster)
+[![NPM downloads](https://img.shields.io/npm/dm/network-cluster.svg?style=flat)](https://www.npmjs.com/package/network-cluster)
+[![Language grade: JavaScript](https://img.shields.io/lgtm/grade/javascript/g/kartikk221/network-cluster.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/kartikk221/network-cluster/context:javascript)
+[![GitHub issues](https://img.shields.io/github/issues/kartikk221/network-cluster)](https://github.com/kartikk221/network-cluster/issues)
+[![GitHub stars](https://img.shields.io/github/stars/kartikk221/network-cluster)](https://github.com/kartikk221/network-cluster/stargazers)
+[![GitHub license](https://img.shields.io/github/license/kartikk221/network-cluster)](https://github.com/kartikk221/network-cluster/blob/master/LICENSE)
+
+</div>
+
 ## Motivation
 NetworkCluster aims to simplify the process of creating scalable clusters with streamlined logic. This package uses websockets under the hood to allow for consistently low latency communication between multiple machines and processes.
 
