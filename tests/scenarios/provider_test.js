@@ -1,5 +1,5 @@
 const NetworkCluster = require('../../index.js');
-const { log, assert_log, wait_until, async_wait } = require('../operators.js');
+const { log, assert_log, wait_until, async_wait, random_string } = require('../operators.js');
 const { port, host } = require('../env.json');
 
 const PROVIDER_HOST = host;
@@ -19,9 +19,13 @@ async function provider_test() {
     });
 
     // Create test consumer
+    const test_value = random_string(10);
     const CONSUMER = new NetworkCluster.Consumer({
         host: PROVIDER_HOST,
         port: PROVIDER_PORT,
+        parameters: {
+            test: test_value,
+        },
     });
 
     // Connect Test Consumer To Main Provider
@@ -32,6 +36,12 @@ async function provider_test() {
     // Check connections state after net connection
     assert_log(GROUP, 'Provider Connections @ 1 Connections', () => {
         return Object.keys(PROVIDER.connections).length === 1;
+    });
+
+    // Check that parameters from consumer were set properly
+    const id = Object.keys(PROVIDER.connections)[0];
+    assert_log(GROUP, 'Provider Parameter Parsing', () => {
+        return PROVIDER.connections[id].parameters['test'] === test_value;
     });
 
     // Perform Two Way Messaging Test
