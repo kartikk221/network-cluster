@@ -36,8 +36,8 @@ class Provider {
             prefer_low_memory_usage: false,
         },
         heartbeat: {
-            interval: 1000 * 10, // By default check every 10 seconds
-            max_strikes: 1,
+            interval: 1000 * 30, // By default check every 15 seconds
+            max_strikes: 2,
         },
     };
 
@@ -86,7 +86,7 @@ class Provider {
         const { key, cert, passphrase, dh_params, prefer_low_memory_usage } = ssl;
 
         // Create a new HyperExpress.Server instance
-        if (key && cert) {
+        if (key && cert && passphrase) {
             this.#server = new HyperExpress.Server({
                 key_file_name: key,
                 cert_file_name: cert,
