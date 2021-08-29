@@ -356,6 +356,10 @@ class Consumer {
     }
 
     get heartbeat_duration() {
+        return this.#heartbeat_duration;
+    }
+
+    get heartbeat_cutoff() {
         return this.#heartbeat_duration * this.#heartbeat_margin;
     }
 
