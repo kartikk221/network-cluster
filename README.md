@@ -182,7 +182,8 @@ Below is a breakdown of the `Provider` object class generated while creating a n
 | `events` | `EventEmitter`  | Underlying EventEmitter for instance. |
 | `in_flight` | `Boolean`  | Whether instance is currently connecting to Provider. |
 | `connected` | `Boolean`  | Whether instance is connected to Provider. |
-| `heartbeat_duration` | `Number`  | Maximum time in milliseconds allowed between heartbeat pings. |
+| `heartbeat_duration` | `Number`  | Expected interval between Provider heartbeat pings. |
+| `heartbeat_cutoff` | `Number`  | Maximum time in milliseconds allowed since last heart beat ping before disconnect. |
 | `last_heartbeat` | `Number`  | Timestamp in milliseconds of last heartbeat ping. |
 
 #### Consumer Methods
