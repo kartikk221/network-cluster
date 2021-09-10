@@ -35,6 +35,7 @@ npm i network-cluster
       - [Provider Instance Properties](#provider-instance-properties)
       - [Provider Instance Methods](#provider-instance-methods)
   - [Consumer](#consumer)
+      - [Consumer Constructor Options](#consumer-constructor-options)
       - [Consumer Properties](#consumer-properties)
       - [Consumer Methods](#consumer-methods)
   - [Connection](#connection)
@@ -173,7 +174,21 @@ Below is a breakdown of the `Provider` object class generated while creating a n
 * `destroy()`: Destroys `Provider` instance and cleans up underlying components.
 
 ## Consumer
-Below is a breakdown of the `Provider` object class generated while creating a new Consumer instance.
+Below is a breakdown of the `Consumer` object class generated while creating a new Consumer instance.
+
+#### Consumer Constructor Options
+* `ssl` [`Boolean`]: Specifies whether `https` protocol should be used to create a secure SSL connection with the `Provider`.
+    * **Default**: `false`.
+* `host` [`String`]: Host/IP address of the `Provider` to connect.
+* `port` [`Number`]: Port of the `Provider` to connect.
+* `path` [`String`]: Address path of the `Provider` to connect.
+  * **Default**: `/connect`
+  * **Note!** This option should be left default unless the `Provider` was created on a different listening path.
+* `parameters` [`Object`]: Parameters to specify when attempting to create a connection with `Provider`.
+  * **Note!** Any authentication values or metadata should be sent as parameters.
+* `reconnect` [`Object`]: Reconnect policy for connection dropouts.
+  * `interval` [`Number`]: Time in milliseconds to wait before attempting a reconnect with the `Provider`.
+  * `max_attempts` [`Number`]: Maximum number of failed reconnect attempts before marking `Consumer` instance as closed and unusable.
 
 #### Consumer Properties
 | Property  | Type     | Description                |
@@ -191,23 +206,22 @@ Below is a breakdown of the `Provider` object class generated while creating a n
     * **Returns** a `Promise` similar to `ready()` method below.
     * **Note!** This method must be called once to initialize the connection cycle.
 * `ready()`: Returns a `Promise` which is resolved on successful connection or rejected with error on failure.
-* `set_error_handler(Function: handler)`: Sets a error handler for `Provider` instance.
+* `set_error_handler(Function: handler)`: Sets a error handler for `Consumer` instance.
     * **Format**: `(Error: error) => {}`
-* `set_debug_logger(Function: handler)`: Sets a debug logger for `Provider` instance.
+* `set_debug_logger(Function: handler)`: Sets a debug logger for `Consumer` instance.
     * **Format**: `(String: message) => {}`
     * **Note!** Using this logger is not recommended in production.
 * `on(String: event, Function: handler)`: Binds a handler to the underlying `EventEmitter` instance.
-    * **`open`**: This event gets called whenever `Consumer` connects to `Provider` instance.
+    * **`open`**: This event gets emitted whenever `Consumer` connects to the `Provider`.
         * **Format**: `() => {}`
-    * **`disconnect`**: This event gets called whenever `Consumer` disconnects from `Provider` instance.
+    * **`disconnect`**: This event gets emitted whenever `Consumer` gets disconnected from the `Provider`.
          * **Format**: `(Number: code, String: reason) => {}`
-    * **`close`**: This event gets called only once when `Consumer` instance has **permanently** disconnected/closed.
-        * **Format**: `(Number: code, String: reason) => {}`
-    * **`message`**: This event gets called whenever a message is received from a consumer connection.
-        * **Format**: `(Connection: consumer, String: message) => {}`
+    * **`message`**: This event gets emitted whenever a message is received from the `Provider`.
+        * **Format**: `(String: message) => {}`
+    * **`close`**: This event gets emitted only once when `Consumer` instance has **permanently** disconnected/closed after exhausting reconnection policy.
 * `once(String: event, Function: handler)`: Same as `on` except only gets called once.
-* `send(String: message)`: Sends a message to connected `Provider`.
-    * **Returns** `Boolean` based on successful delivery.
+* `send(String: message)`: Sends a message to the `Provider`.
+    * **Returns** `Boolean` based on successful message delivery.
 * `destroy()`: Destroys `Consumer` instance and all underlying components.
 
 ## Connection
