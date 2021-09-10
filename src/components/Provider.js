@@ -1,7 +1,11 @@
 const EventEmitter = require('events');
-const UUID = require('uuid');
 const HyperExpress = require('hyper-express');
 const { wrap_object } = require('../shared/operators.js');
+
+// crypto.randomUUID is faster but only available on recent versions of Node
+const crypto = require('crypto');
+const UUID = require('uuid');
+const UUID_V4 = crypto.randomUUID || UUID.v4;
 
 class Provider {
     #server;
@@ -194,7 +198,7 @@ class Provider {
      * @param {Response} response
      */
     _upgrade_connection(request, response) {
-        const id = UUID.v4();
+        const id = UUID_V4();
         this.#handlers.log('CONNECTION_UPGRADE|' + id + '|' + request.ip);
         return response.upgrade({
             id: id,
